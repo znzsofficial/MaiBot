@@ -569,6 +569,23 @@ def register_maisaka_hook_specs(registry: HookSpecRegistry) -> List[HookSpec]:
                 allow_abort=False,
                 allow_kwargs_mutation=True,
             ),
+            # neko-reply-latency-v1
+            HookSpec(
+                name="maisaka.reply.after_send",
+                description="回复发送结束后的只读精确回执；不代表未知发送成功。",
+                parameters_schema=build_object_schema(
+                    {
+                        "session_id": {"type": "string"},
+                        "reply_id": {"type": "string"},
+                        "call_id": {"type": "string"},
+                        "send_results": {"type": "array"},
+                    },
+                    required=["session_id", "reply_id", "call_id", "send_results"],
+                ),
+                default_timeout_ms=5000,
+                allow_abort=False,
+                allow_kwargs_mutation=False,
+            ),
             HookSpec(
                 name="maisaka.reply.before_post_process",
                 description="在 Maisaka 对最终可见回复执行文本后处理前触发，可按本次回复调整后处理策略。",

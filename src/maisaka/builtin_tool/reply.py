@@ -1,4 +1,4 @@
-﻿"""reply 工具适配与共用回复执行服务。"""
+"""reply 工具适配与共用回复执行服务。"""
 
 from copy import deepcopy
 from typing import Any, Dict, Optional, Tuple
@@ -261,6 +261,29 @@ def _build_monitor_metadata(reply_result: ReplyGenerationResult, reply_id: str =
     return metadata
 
 
+async def _notify_reply_delivery(tool_ctx, execution, send_results):
+    """neko-reply-latency-v1: correlated receipts only; no media or extra sends."""
+    if not execution.targets or not send_results:
+        return
+    receipts = [
+        {"index": item["index"], "success": item["success"],
+         "message_id": item.get("message_id", ""), "text": item.get("speech_text", "")}
+        for item in send_results
+    ]
+    try:
+        await tool_ctx.get_runtime_manager().invoke_hook(
+            "maisaka.reply.after_send",
+            session_id=tool_ctx.runtime.session_id,
+            reply_id=execution.reply_id,
+            call_id=execution.call_id,
+            send_results=receipts,
+        )
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        logger.warning("回复发送回执 Hook 失败；不改变已发送结果，不补发")
+
+
 def _build_send_result(
     *,
     index: int,
@@ -268,6 +291,7 @@ def _build_send_result(
     set_quote: bool,
     success: bool,
     message_id: str = "",
+    speech_text: str = "",
 ) -> dict[str, Any]:
     """构建分段回复的轻量发送结果。"""
 
@@ -277,6 +301,7 @@ def _build_send_result(
         "set_quote": set_quote,
         "success": success,
         "message_id": message_id,
+        "speech_text": speech_text,
     }
 
 
@@ -701,16 +726,20 @@ async def execute_reply(
                         set_quote=segment_set_quote,
                         success=True,
                         message_id=sent_message_id,
+                        speech_text="".join(c.text for c in getattr(getattr(sent_message, "raw_message", None), "components", ()) if isinstance(c, TextComponent)),
                     )
                 )
                 previous_sent_message = sent_message
     except Exception:
+        await _notify_reply_delivery(tool_ctx, extension_execution, send_results)
         logger.exception(f"{tool_ctx.runtime.log_prefix} 发送文字消息时发生异常，目标消息编号={target_message_id}")
         return tool_ctx.build_failure_result(
             "reply",
             "发送可见回复时发生异常。",
             metadata=reply_metadata,
         )
+
+    await _notify_reply_delivery(tool_ctx, extension_execution, send_results)
 
     if not sent:
         return tool_ctx.build_failure_result(
