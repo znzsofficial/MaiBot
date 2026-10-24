@@ -14,6 +14,7 @@ REQUIRED = {
     "pytests/neko/test_life_compaction.py",
     "pytests/neko/test_source_policy.py",
     "pytests/neko/test_plugin_bridge.py",
+    "pytests/neko/test_tool_context.py",
     "pytests/maisaka/test_context_compaction.py",
     "pytests/maisaka/test_focus_group_runtime.py",
     "pytests/maisaka/test_replyer_expression_selection.py",

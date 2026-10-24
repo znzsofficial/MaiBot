@@ -70,8 +70,10 @@ def main():
             "import src.maisaka.builtin_tool.reply as reply;"
             "import src.maisaka.context.compaction as compaction;"
             "import src.chat.replyer.maisaka_generator_base as generator;"
-            "assert all(Path(m.__file__).resolve().is_relative_to(root) for m in [reply,compaction,generator]);"
+            "import src.plugin_runtime.component_query as query;"
+            "assert all(Path(m.__file__).resolve().is_relative_to(root) for m in [reply,compaction,generator,query]);"
             "assert callable(reply._notify_reply_delivery);assert callable(compaction._neko_compaction_items);"
+            "assert callable(query.ComponentQueryService._build_trusted_tool_context);"
             "print('Extracted source imports verified with real SDK; no model or QQ calls')"
         )
         subprocess.run(

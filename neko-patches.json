@@ -8,6 +8,7 @@
     "src/maisaka/builtin_tool/reply.py": "a089fcca784b310a654d6166f32c5dc631c9fbe605741237962a0670bb684809",
     "src/chat/replyer/maisaka_generator_base.py": "3384aa59bbbd6a40d74130ec416a7a920f53703f659fe672844aa81d37757fb9",
     "src/maisaka/context/compaction.py": "6822c17fb5f3abfcf3bd475381f8a94236e7706d164da96f7d8d3cb0890cd90b",
+    "src/plugin_runtime/component_query.py": "a5c60e93787cdd27e0edeeabb2cff2725b0f0260038d8a7a92ed88172f3b5c9b",
     "uv.lock": "e01a74593d2c2a9fe4972329d33802d6b33c890ce945e1133b8481d4ebf50a95"
   }
 }

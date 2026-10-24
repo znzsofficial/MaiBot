@@ -790,6 +790,31 @@ class ComponentQueryService:
         )
 
     @staticmethod
+    def _build_trusted_tool_context(context: Optional[ToolExecutionContext]) -> Dict[str, str]:
+        """为显式声明契约的插件提供宿主身份，不接受模型传入的同名信封。
+
+        Focus 以已路由的目标执行上下文为准；别群锚点不能借出账号或身份。
+        无锚点时账号留空，由消费者使用现有会话和适配器真实登录状态核验。
+        """
+        if context is None:
+            return {}
+        session_id = str(context.stream_id or context.session_id or "").strip()
+        anchor = context.metadata.get("anchor_message")
+        same_anchor = anchor is not None and str(getattr(anchor, "session_id", "")) == session_id
+        info = getattr(anchor, "message_info", None) if same_anchor else None
+        group = getattr(info, "group_info", None)
+        user = getattr(info, "user_info", None)
+        return {
+            "contract": "neko.tools.context.v1",
+            "session_id": session_id,
+            "stream_id": session_id,
+            "platform": str(context.platform or "").strip(),
+            "group_id": str(context.group_id or getattr(group, "group_id", "") or "").strip(),
+            "user_id": str(context.user_id or getattr(user, "user_id", "") or "").strip(),
+            "account_id": str(getattr(anchor, "account_id", "") or "").strip() if same_anchor else "",
+        }
+
+    @staticmethod
     def _build_tool_invocation_payload(
         entry: "ToolEntry",
         invocation: ToolInvocation,
@@ -807,6 +832,11 @@ class ComponentQueryService:
         """
 
         payload = dict(invocation.arguments)
+        if (
+            entry.invoke_method == "plugin.invoke_tool"
+            and entry.metadata.get("trusted_context") == "neko.tools.context.v1"
+        ):
+            payload["_host_context"] = ComponentQueryService._build_trusted_tool_context(context)
         context_payload = ComponentQueryService._build_tool_context_payload(context)
         if entry.invoke_method == "plugin.invoke_action":
             stream_id = str(
