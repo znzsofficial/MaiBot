@@ -1,3 +1,7 @@
+> **Neko maintenance fork** — based on upstream **1.3.15**, not an official MaiBot release.
+> See [NEKO_FORK.md](NEKO_FORK.md) for the small patch set, validation and upstream sync policy.
+> No production configuration, chat data or credentials are included.
+
 <a id="-双语--bilingual"></a>
 
 <div align="center">

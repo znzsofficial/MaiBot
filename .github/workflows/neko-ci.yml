@@ -1,0 +1,86 @@
+name: Neko fork contracts
+on:
+  push:
+    branches: [neko/main]
+  pull_request:
+    branches: [neko/main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: neko-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  contracts:
+    name: contracts (${{ matrix.case }})
+    if: github.repository == 'znzsofficial/MaiBot'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: source
+    env:
+      NEKO_PLUGIN_FIXTURES: ${{ github.workspace }}/fixtures
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {case: linux-production, os: ubuntu-24.04, python: '3.14.4'}
+          - {case: windows-minimum, os: windows-latest, python: '3.12'}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          path: source
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: znzsofficial/neko-life
+          ref: f6116cfc76943c9bd6b78b47d309478645908a75
+          persist-credentials: false
+          path: fixtures/neko-life
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: znzsofficial/neko-tts
+          ref: 7be09dec956fbae6a8600eef5df14cf116e18d57
+          persist-credentials: false
+          path: fixtures/neko-tts
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install uv==0.13.5
+      - name: Install the reviewed lock
+        run: uv sync --locked --group dev
+      - name: Lint fork tooling
+        run: uv run --no-sync ruff check scripts/neko_check.py scripts/neko_pytest_guard.py scripts/neko_source.py pytests/neko
+      - name: Format fork tooling
+        run: uv run --no-sync ruff format --check scripts/neko_check.py scripts/neko_pytest_guard.py scripts/neko_source.py pytests/neko
+      - name: Run contracts
+        run: uv run --no-sync python scripts/neko_check.py
+      - name: Verify source package
+        shell: python
+        run: |
+          import os, pathlib, subprocess
+          output = pathlib.Path(os.environ['RUNNER_TEMP']) / 'maibot-neko-source.zip'
+          subprocess.run(['uv', 'run', '--no-sync', 'python', 'scripts/neko_source.py', '--output', str(output)], check=True)
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: neko-source-${{ matrix.case }}
+          path: |
+            ${{ runner.temp }}/maibot-neko-source.zip
+            ${{ runner.temp }}/maibot-neko-source.json
+          if-no-files-found: error
+          retention-days: 7
+  ci-gate:
+    if: always() && github.repository == 'znzsofficial/MaiBot'
+    needs: contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - shell: python
+        env:
+          RESULT: ${{ needs.contracts.result }}
+        run: |
+          import os
+          if os.environ['RESULT'] != 'success':
+              raise SystemExit('Both real contract/package jobs must succeed')

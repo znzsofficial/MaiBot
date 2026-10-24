@@ -69,6 +69,8 @@ def engine(monkeypatch) -> MaisakaReasoningEngine:
         chat_stream=SimpleNamespace(platform="test", is_group_session=True, group_id="group", user_id=""),
         _end_planner_continuation=Mock(),
         _reset_consecutive_wait_count=Mock(),
+        # Match the real 1.3.15 runtime; both reply-target cases read this field.
+        _consecutive_wait_count=0,
         _enter_stop_state=Mock(),
         _update_stage_status=Mock(),
         expand_message_id_aliases=lambda args: args,

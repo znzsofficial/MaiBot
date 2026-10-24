@@ -1,16 +1,22 @@
-name: Docker Build and Push (Dev)
+# Archived upstream workflow; inactive here. See NEKO_FORK.md.
+name: Docker Build and Push (Main)
 
 on:
-  schedule:
-    - cron: '0 0 * * *' # every day at midnight UTC
-  #   branches:
-  #     - dev
+  push:
+    branches:
+      - main
+      - classical
+    tags:
+      - "v*.*.*"
+      - "v*"
+      - "*.*.*"
+      - "*.*.*-*"
   workflow_dispatch: # 允许手动触发工作流
     inputs:
       branch:
         description: 'Branch to build'
         required: false
-        default: 'dev'
+        default: 'main'
 
 # Workflow's jobs
 jobs:
@@ -23,7 +29,6 @@ jobs:
       - name: Check out git repository
         uses: actions/checkout@v4
         with:
-          ref: dev
           fetch-depth: 0
 
       # Clone required dependencies
@@ -58,8 +63,8 @@ jobs:
           platforms: linux/amd64
           labels: ${{ steps.meta.outputs.labels }}
           file: ./Dockerfile
-          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/maibot:dev-amd64-buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/maibot:dev-amd64-buildcache,mode=max
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/maibot:amd64-buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/maibot:amd64-buildcache,mode=max
           outputs: type=image,name=${{ secrets.DOCKERHUB_USERNAME }}/maibot,push-by-digest=true,name-canonical=true,push=true
           build-args: |
             BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -74,7 +79,6 @@ jobs:
       - name: Check out git repository
         uses: actions/checkout@v4
         with:
-          ref: dev
           fetch-depth: 0
 
       # Clone required dependencies
@@ -109,8 +113,8 @@ jobs:
           platforms: linux/arm64/v8
           labels: ${{ steps.meta.outputs.labels }}
           file: ./Dockerfile
-          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/maibot:dev-arm64-buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/maibot:dev-arm64-buildcache,mode=max
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/maibot:arm64-buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/maibot:arm64-buildcache,mode=max
           outputs: type=image,name=${{ secrets.DOCKERHUB_USERNAME }}/maibot,push-by-digest=true,name-canonical=true,push=true
           build-args: |
             BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -140,8 +144,13 @@ jobs:
         with:
           images: ${{ secrets.DOCKERHUB_USERNAME }}/maibot
           tags: |
-            type=raw,value=dev
-            type=schedule,pattern=dev-{{date 'YYMMDD'}}
+            type=ref,event=branch
+            type=ref,event=tag
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,prefix=${{ github.ref_name }}-,enable=${{ github.ref_type == 'branch' }}
 
       - name: Create and Push Manifest
         run: |

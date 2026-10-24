@@ -1,3 +1,18 @@
+# Neko fork maintenance
+
+- This is a thin GPL-3.0 fork. Preserve upstream history, attribution and licenses.
+- Read `NEKO_FORK.md` and `neko-patches.json` first. `main` is the upstream mirror;
+  `neko/main` is the maintenance default. Never discard fork commits to sync.
+- Source creation/push is not production migration or restart authorization.
+- Do not import runtime config/data/plugins, credentials, private prompts or chat history.
+- Preserve exact initial four-source/lock bytes. Do not reformat unrelated product code.
+- Use `uv sync --locked --group dev`; `uv run --no-sync python scripts/neko_check.py`.
+  The contracts use a synthetic instance and deny network, including local model/QQ services.
+- Keep inherited workflows archived and disabled repository-wide. Before updating any mirror
+  branch, disable Actions, audit newly inherited workflows, then re-enable only `neko-ci.yml`.
+- Never publish to upstream PyPI, Docker, CNB or Crowdin, auto-deploy, or open upstream PRs
+  without explicit authorization. Run source packaging only from a clean exact commit.
+
 # 代码规范
 # import 规范
 在从外部库进行导入时候，请遵循以下顺序：
