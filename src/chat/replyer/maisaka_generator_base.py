@@ -950,14 +950,20 @@ class BaseMaisakaReplyGenerator(RetroReplyPromptMixin):
             logger.info("表达方式选择跳过：缺少子代理执行器")
             return MaisakaReplyContext()
 
-        selection_result = await maisaka_expression_selector.select_for_reply(
-            session_id=session_id,
-            chat_history=chat_history,
-            reply_message=reply_message,
-            reply_reason=reply_reason,
-            reply_tool_args=reply_tool_args or {},
-            sub_agent_runner=sub_agent_runner,
-        )
+        # neko-reply-latency-v1: one cooperative deadline for vector + LLM + hooks.
+        try:
+            async with asyncio.timeout(20.0):
+                selection_result = await maisaka_expression_selector.select_for_reply(
+                    session_id=session_id,
+                    chat_history=chat_history,
+                    reply_message=reply_message,
+                    reply_reason=reply_reason,
+                    reply_tool_args=reply_tool_args or {},
+                    sub_agent_runner=sub_agent_runner,
+                )
+        except TimeoutError:
+            logger.warning("表达选择超过20秒预算，本轮跳过表达注入，继续正文生成")
+            return MaisakaReplyContext()
         return MaisakaReplyContext(
             expression_habits=selection_result.expression_habits,
             selected_expression_ids=selection_result.selected_expression_ids,
