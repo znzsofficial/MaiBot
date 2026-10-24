@@ -72,9 +72,53 @@ class ContextSummaryMessage(ReferenceMessage):
         return "context_compaction"
 
 
+# neko-life-context-v1: request-only controls are not conversation facts.
+def _neko_internal_control(message):
+    import re
+
+    # Actual received/sent IM messages (including verbatim quotes) always survive.
+    if isinstance(message, SessionBackedMessage):
+        return False
+    if getattr(message, "source_kind", "") in {
+        "plugin_proactive:neko.proactive", "plugin_proactive:attention-seeker-mai",
+    }:
+        return True
+    if not isinstance(message, ReferenceMessage) or getattr(message, "display_prefix", "") != "[聊天任务事件]":
+        return False
+    text = getattr(message, "content", "")
+    return isinstance(text, str) and re.fullmatch(
+        r'<focus_event session_id="[^"<>]+" chat_name="[^"<>]*">\n'
+        r'<plugin_proactive_task id="proactive:(?:neko\.proactive|attention-seeker-mai):[0-9]{10,16}" '
+        r'plugin_id="(?:neko\.proactive|attention-seeker-mai)">\n[\s\S]*'
+        r'\n</plugin_proactive_task>\n</focus_event>', text,
+    ) is not None
+
+
+def _neko_compaction_items(items, history):
+    owned = {
+        message.context_item_id for message in history
+        if _neko_internal_control(message) and getattr(message, "context_item_id", "")
+    }
+    result = []
+    for item in items:
+        kind = type(item).__name__
+        item_id = str(getattr(getattr(item, "meta", None), "item_id", ""))
+        if kind == "SystemMessageItem" and item_id.startswith((
+            "neko.life.context.v1:", "neko.proactive.ephemeral.v1:",
+        )):
+            continue
+        if kind == "UserMessageItem" and item_id in owned:
+            continue
+        # Keep real utterances, earlier summaries, reasoning and all tool pairs intact.
+        result.append(item)
+    return result
+
+
 def message_text_for_compaction(message: LLMContextMessage) -> str:
     """将消息、工具参数和执行结果编码为资料，不重放工具调用或模型内部推理。"""
 
+    if _neko_internal_control(message):
+        return ""
     if isinstance(message, ModelOutputContextMessage):
         if message.role in {"reasoning", "provider_activity", "provider_opaque"}:
             return ""
@@ -206,6 +250,7 @@ def _build_compaction_request(
         tail_parts.extend(["<conversation_sources>", source_context, "</conversation_sources>"])
     tail = "\n".join([*tail_parts, instruction])
     request = planner_snapshot.request.detached_snapshot()
+    request.context_items = _neko_compaction_items(request.context_items, planner_snapshot.history)
     request.context_items.append(ContextItemBuilder().set_role(RoleType.User).add_text_content(tail).build())
     # 工具定义、顺序和调用模式都会影响供应商实际渲染的前缀，全部继承 Planner。
     # 压缩仅消费摘要文本，不进入宿主工具执行流程；含工具调用的响应会被拒收。
