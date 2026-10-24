@@ -46,6 +46,7 @@ def test_network_gate_blocks_model_proxy_adapter_and_external_connections(addres
 
 
 def test_upstream_history_license_and_application_diff_stay_narrow():
+    assert subprocess.check_output(["git", "config", "--get", "core.autocrlf"], cwd=ROOT).strip() == b"false"
     manifest = json.loads((ROOT / "neko-patches.json").read_text(encoding="utf-8"))
     base = manifest["upstream_commit"]
     subprocess.run(["git", "merge-base", "--is-ancestor", base, "HEAD"], cwd=ROOT, check=True)

@@ -21,6 +21,9 @@
 
 ## 本地验证与 CI
 
+克隆时使用 `git -c core.autocrlf=false clone ...` 保留Git对象字节；已有带改动目录不要批量覆盖重检出。
+CI也显式禁用检出换行转换，源码/许可证哈希仍按字节严格核验，不靠放宽CRLF断言通过。
+
 ```console
 uv sync --locked --group dev
 uv run --no-sync python scripts/neko_check.py
