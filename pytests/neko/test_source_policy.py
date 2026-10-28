@@ -5,6 +5,7 @@ from pathlib import Path
 import hashlib
 import json
 import subprocess
+import tomllib
 import pytest
 
 import neko_pytest_guard as gate
@@ -18,6 +19,24 @@ def test_all_registered_source_bytes_match():
     assert len(manifest["sources"]) == 6
     for name, digest in manifest["sources"].items():
         assert hashlib.sha256((ROOT / name).read_bytes()).hexdigest() == digest, name
+
+
+def test_sdk_upgrade_keeps_other_official_locked_versions():
+    manifest = json.loads((ROOT / "neko-patches.json").read_text(encoding="utf-8"))
+    official = tomllib.loads(
+        subprocess.check_output(
+            ["git", "show", manifest["upstream_commit"] + ":uv.lock"],
+            cwd=ROOT,
+        ).decode("utf-8")
+    )
+    current = tomllib.loads((ROOT / "uv.lock").read_text(encoding="utf-8"))
+    before = {package["name"]: package["version"] for package in official["package"]}
+    after = {package["name"]: package["version"] for package in current["package"]}
+    assert after == {**before, "maibot-plugin-sdk": "2.17.0"}
+    assert manifest["runtime_packages"]["maibot-plugin-sdk"] == "2.17.0"
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    assert "maibot-plugin-sdk>=2.17.0" in project["project"]["dependencies"]
+    assert "maibot-plugin-sdk>=2.17.0" in (ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()
 
 
 def test_only_the_readonly_fork_workflow_is_active():
