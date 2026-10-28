@@ -5,7 +5,9 @@
   `neko/main` is the maintenance default. Never discard fork commits to sync.
 - Source creation/push is not production migration or restart authorization.
 - Do not import runtime config/data/plugins, credentials, private prompts or chat history.
-- Preserve exact initial four-source/lock bytes. Do not reformat unrelated product code.
+- Preserve initial byte-audit history. When integrating a reviewed upstream tag, retain
+  maintenance behavior, reconcile its source/lock changes and update the registered hashes.
+  Do not reformat unrelated product code.
 - Use `uv sync --locked --group dev`; `uv run --no-sync python scripts/neko_check.py`.
   The contracts use a synthetic instance and deny network, including local model/QQ services.
 - Keep inherited workflows archived and disabled repository-wide. Before updating any mirror

@@ -1,14 +1,14 @@
 {
   "upstream_repository": "Mai-with-u/MaiBot",
-  "upstream_version": "1.3.15",
-  "upstream_commit": "062d45cf8bd4272ac57d7ec03fcf405e5a458211",
-  "runtime_packages": {"maibot": "1.3.15", "maibot-dashboard": "1.9.9", "maibot-plugin-sdk": "2.16.0"},
+  "upstream_version": "1.3.16",
+  "upstream_commit": "fe88ec6b6053e40eaf430cb5ba7ed7e805add2cb",
+  "runtime_packages": {"maibot": "1.3.16", "maibot-dashboard": "1.9.10", "maibot-plugin-sdk": "2.16.0"},
   "sources": {
-    "src/maisaka/chat_loop_service.py": "3775d6aa3d28a337273e03b2225f6c76fe93621ca969a0fb54fa26f27efddb0d",
-    "src/maisaka/builtin_tool/reply.py": "a089fcca784b310a654d6166f32c5dc631c9fbe605741237962a0670bb684809",
-    "src/chat/replyer/maisaka_generator_base.py": "3384aa59bbbd6a40d74130ec416a7a920f53703f659fe672844aa81d37757fb9",
-    "src/maisaka/context/compaction.py": "6822c17fb5f3abfcf3bd475381f8a94236e7706d164da96f7d8d3cb0890cd90b",
-    "src/plugin_runtime/component_query.py": "a5c60e93787cdd27e0edeeabb2cff2725b0f0260038d8a7a92ed88172f3b5c9b",
-    "uv.lock": "e01a74593d2c2a9fe4972329d33802d6b33c890ce945e1133b8481d4ebf50a95"
+    "src/maisaka/chat_loop_service.py": "94c1b4f2d9cf4f50b9b556b0067140e2dc415fc97083e5c491787de0e50698a6",
+    "src/maisaka/builtin_tool/reply.py": "37ebc3ecb3acf7e1d764b7377c301a6ca4b5628ab52c0e35485f76369a920f46",
+    "src/chat/replyer/maisaka_generator_base.py": "edfe36edebf503da0394128f0e7b8c2941d731340f10cd3c6b62ae08e0b963d7",
+    "src/maisaka/context/compaction.py": "05035009d2a669da7fc0bfcf5b95b400991b6cbb038ae6b9c6bf6e2ea56614f2",
+    "src/plugin_runtime/component_query.py": "e66ea8974146cde45295b21ea9e4523e6461dfd63fc3c0b5bfce03c6706dcbaa",
+    "uv.lock": "4b6a759c4124bd6cab13c7cad128b20af49c89f57ca8ffdcd3558442c65dea2a"
   }
 }

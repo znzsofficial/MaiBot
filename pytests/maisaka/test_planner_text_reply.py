@@ -1,8 +1,12 @@
-"""普通 Planner 正文交接、参数暂存及共用回复服务的回归测试。"""
+"""Fork-retained Planner/Focus contracts, adapted to 1.3.16 supplement orchestration.
+
+Upstream removed this suite. Keep its reply, cancellation and extension coverage;
+set_reply_options was removed from the product, so assert the new supplement path.
+"""
 
 from datetime import datetime
 from types import SimpleNamespace
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 from unittest.mock import AsyncMock, Mock
 
 import asyncio
@@ -11,7 +15,7 @@ import pytest
 from src.chat.message_receive.message import SessionMessage
 from src.common.data_models.llm_service_data_models import LLMResponseResult
 from src.common.data_models.mai_message_data_model import MessageInfo, UserInfo
-from src.common.data_models.message_component_data_model import MessageSequence, TextComponent
+from src.common.data_models.message_component_data_model import ImageComponent, MessageSequence, TextComponent
 from src.common.data_models.reply_generation_data_models import LLMCompletionResult, ReplyGenerationResult
 from src.common.i18n import use_locale
 from src.config.config import global_config
@@ -26,6 +30,7 @@ from src.maisaka.context.messages import InternalContextMessage, SessionBackedMe
 from src.maisaka.mode_policy import is_idle_cycle_reason
 from src.maisaka.quote.counter import ReplyQuoteCounter
 from src.maisaka.reasoning_engine import CycleRuntimeState, MaisakaReasoningEngine
+from src.maisaka.reply_supplement import ReplySupplement, ReplySupplementPlan
 
 
 def _message(message_id: str) -> SessionMessage:
@@ -83,7 +88,9 @@ def engine(monkeypatch) -> MaisakaReasoningEngine:
         build_deferred_tools_reminder=lambda: "",
         _max_context_size=100,
         _cycle_counter=1,
-        _chat_loop_service=SimpleNamespace(select_llm_context_messages=lambda *a, **kw: ([], 0)),
+        _chat_loop_service=SimpleNamespace(
+            select_llm_context_messages=lambda *a, **kw: ([], 0), planner_request_snapshot=None,
+        ),
     )
     result = MaisakaReasoningEngine(runtime)
     runtime._reasoning_engine = result
@@ -120,17 +127,20 @@ async def test_text_executes_once_preserves_guidance_and_ends(engine, monkeypatc
         )
     )
     monkeypatch.setattr(engine_module, "execute_reply", execute)
-    engine._reply_options = {"attach_at": ["original"], "plugin_options": {"test.extension": {"enabled": True}}}
+    snapshot = object()
+    engine._runtime._chat_loop_service.planner_request_snapshot = snapshot
+    supplement = AsyncMock(return_value=object())
+    monkeypatch.setattr(engine_module, "generate_reply_supplement", supplement)
 
     assert await _act(engine, response, state)
 
     execute.assert_awaited_once()
     arguments = execute.call_args.args[1]
     assert arguments["reply_reference"] == response.content == "安慰对方，简短回应。"
-    assert arguments["attach_at"] == ["original"]
-    assert arguments["plugin_options"] == {"test.extension": {"enabled": True}}
+    assert set(arguments) == {"msg_id", "reply_reference"}
     assert execute.call_args.kwargs["target_message"] is target
-    assert not engine._reply_options
+    await execute.call_args.kwargs["supplement_runner"]()
+    supplement.assert_awaited_once_with(snapshot, response.content, "chat", True)
     assert state.cycle_end.reason == ("planner_reply_end" if success else "planner_reply_failed")
     assert not is_idle_cycle_reason(state.cycle_end.reason)
     assert state.tool_monitor_results[0]["tool_call_source"] == "planner_text"
@@ -242,15 +252,11 @@ async def test_reply_target_is_fixed_before_request_and_refreshed_next_round(eng
 
 
 @pytest.mark.asyncio
-async def test_normal_tools_keep_options_but_focus_provider_keeps_reply(engine):
+async def test_normal_tools_use_supplement_but_focus_provider_keeps_reply(engine):
     definitions, _ = await engine._build_action_tool_definitions()
     by_name = {item["name"]: item for item in definitions}
     assert "reply" not in by_name
-    assert "set_reply_options" in by_name
-    properties = by_name["set_reply_options"]["parameters_schema"]["properties"]
-    assert "attach_pic" in properties
-    assert "reply_reference" not in properties
-    assert "msg_id" not in properties
+    assert "set_reply_options" not in by_name
     assert "与不调用任何工具时一致" not in by_name["stop"]["description"]
     # Focus 直接使用 Provider，不经过普通模式的定义转换。
     focus_spec = await engine._runtime._tool_registry.get_tool_spec("reply")
@@ -259,28 +265,20 @@ async def test_normal_tools_keep_options_but_focus_provider_keeps_reply(engine):
 
 
 @pytest.mark.asyncio
-async def test_options_replace_validate_and_clear_without_sending(engine, monkeypatch):
-    execute = AsyncMock()
+async def test_supplement_without_request_snapshot_fails_without_generation_or_sending(engine, monkeypatch):
+    async def execute_with_supplement(*args, **kwargs):
+        return await kwargs["supplement_runner"]()
+
+    execute = AsyncMock(side_effect=execute_with_supplement)
     monkeypatch.setattr(engine_module, "execute_reply", execute)
-
-    async def configure(arguments: Dict[str, Any]):
-        return await engine._handle_tool_calls(
-            [ToolCall("options", "set_reply_options", arguments)], "准备附件", SimpleNamespace(), CycleRuntimeState()
-        )
-
-    _, _, _, results = await configure({"attach_pic": [{"msg_id": "original", "index": 0}]})
-    assert results[0]["success"]
-    assert "attach_pic" in engine._reply_options
-    _, _, _, results = await configure({"reply_reference": "不得在工具里触发回复"})
-    assert not results[0]["success"]
-    await configure({"reply_style": "简短表达"})
-    assert engine._reply_options == {"reply_style": "简短表达"}
-    await configure({})
-    assert not engine._reply_options
-    await configure({"reply_style": "正常回复"})
-    engine._end_planner_no_tool_cycle([], status_line="stop")
-    assert not engine._reply_options
-    execute.assert_not_awaited()
+    generation = AsyncMock()
+    monkeypatch.setattr(engine_module, "generate_reply_supplement", generation)
+    state = CycleRuntimeState(reply_target_message=engine._runtime._chat_history[0].original_message)
+    assert await _act(engine, _response(), state)
+    assert state.cycle_end.reason == "planner_reply_failed"
+    assert "Planner 请求快照" in state.cycle_end.detail
+    generation.assert_not_awaited()
+    execute.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -308,7 +306,7 @@ def test_prompt_and_tail_reminder_follow_experimental_switch(monkeypatch, locale
         prompt = service._build_chat_system_prompt()
         reminder = service._build_planner_final_user_reminder()
     assert ("reply_reference" in prompt) is (not enabled)
-    assert ("set_reply_options" in prompt) is enabled
+    assert "set_reply_options" not in prompt
     assert "stop()" in prompt and "wait()" in prompt
     if enabled:
         assert "stop" in reminder and "wait" in reminder
@@ -341,7 +339,7 @@ async def test_disabled_mode_restores_reply_tool_and_does_not_send_text(engine, 
         [ToolCall("options", "set_reply_options", {})], "", SimpleNamespace(), CycleRuntimeState(),
     )
     assert not results[0]["success"]
-    assert not engine._reply_options
+    assert not hasattr(engine, "_reply_options")
 
 
 @pytest.mark.parametrize("enabled", [False, True])
@@ -374,7 +372,10 @@ def test_running_turn_keeps_prompt_and_behavior_when_switch_changes(engine, monk
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("failure", ["", "empty_receipt", "exception"])
-async def test_shared_reply_service_preserves_extensions_attachments_and_send_count(engine, monkeypatch, failure):
+@pytest.mark.parametrize("supplemented", [False, True])
+async def test_shared_reply_service_preserves_extensions_attachments_and_send_count(
+    engine, monkeypatch, failure, supplemented,
+):
     monkeypatch.setattr(global_config.chat, "enable_reply_at", True)
     monkeypatch.setattr(global_config.emoji, "use_new_send_logic", True)
     target = engine._runtime._chat_history[0].original_message
@@ -386,6 +387,7 @@ async def test_shared_reply_service_preserves_extensions_attachments_and_send_co
         targets=["test.ext"],
         parameters={"test.ext": {"mode": "image"}},
         reply_id="reply-id",
+        call_id="execution",
         extra_prompt="插件提示",
         prepare=AsyncMock(),
         transform=AsyncMock(side_effect=lambda text, items: items),
@@ -396,6 +398,8 @@ async def test_shared_reply_service_preserves_extensions_attachments_and_send_co
     monkeypatch.setattr(reply_module, "_resolve_reply_quote", AsyncMock(return_value=(False, None)))
     monkeypatch.setattr(reply_module, "is_bot_self", lambda *args: False)
     context = BuiltinToolRuntimeContext(engine, engine._runtime)
+    delivered = AsyncMock()
+    monkeypatch.setattr(context, "get_runtime_manager", lambda: SimpleNamespace(invoke_hook=delivered))
     process = AsyncMock(
         return_value=[
             PostProcessedReplyMessage(MessageSequence([TextComponent("第一段")])),
@@ -404,7 +408,10 @@ async def test_shared_reply_service_preserves_extensions_attachments_and_send_co
     )
     monkeypatch.setattr(context, "post_process_reply_message_items_async", process)
     second_result = {"": _message("sent-2"), "empty_receipt": None, "exception": RuntimeError("发送失败")}[failure]
-    send = AsyncMock(side_effect=[_message("sent-1"), second_result])
+    outcomes = [_message("sent-1"), second_result]
+    if supplemented:
+        outcomes.insert(0, _message("sent-picture"))
+    send = AsyncMock(side_effect=outcomes)
     monkeypatch.setattr(reply_module.send_service, "_send_to_target_with_message", send)
     engine._runtime.record_planner_reply = Mock()
     arguments = {
@@ -416,20 +423,47 @@ async def test_shared_reply_service_preserves_extensions_attachments_and_send_co
         "plugin_options": {"test.ext": {"mode": "image"}},
     }
 
-    result = await reply_module.execute_reply(context, arguments, call_id="execution", target_message=target)
+    supplement_runner = None
+    if supplemented:
+        supplement_runner = AsyncMock(return_value=ReplySupplement(
+            plan=ReplySupplementPlan.model_validate({
+                "msg_id": "original", "parts": [{"type": "pic", "source": "original", "index": 0},
+                                                  {"type": "reply"}],
+            }),
+            quote_message=target,
+            components=[ImageComponent(binary_hash="synthetic", content="image", binary_data=b"synthetic"), None],
+            metadata={"synthetic": True},
+        ))
+    result = await reply_module.execute_reply(
+        context, arguments, call_id="execution", target_message=target, supplement_runner=supplement_runner,
+    )
 
     assert result.success is (not failure)
     generator.generate_reply_with_context.assert_awaited_once()
     request = generator.generate_reply_with_context.call_args.kwargs
-    assert request["reply_message"] is target
+    assert request["reply_message"] is (None if supplemented else target)
     for key in ("reply_reference", "attach_at", "attach_pic", "attach_emoji", "plugin_options"):
         assert request["reply_tool_args"][key] == arguments[key]
     extension.prepare.assert_awaited_once_with(arguments["plugin_options"])
     extension.transform.assert_awaited_once()
-    assert process.call_args.args[1] == arguments
-    assert send.await_count == 2
-    assert result.metadata["sent_message_ids"] == (["sent-1"] if failure else ["sent-1", "sent-2"])
+    if supplemented:
+        assert process.call_args.args[1] is None
+        supplement_runner.assert_awaited_once()
+        assert send.await_args_list[0].kwargs["set_reply"] is False
+        assert send.await_args_list[1].kwargs["set_reply"] is True
+        assert send.await_args_list[1].kwargs["reply_message"] is target
+    else:
+        assert process.call_args.args[1] == arguments
+    assert send.await_count == 2 + int(supplemented)
+    expected_ids = (["sent-picture"] if supplemented else []) + (["sent-1"] if failure else ["sent-1", "sent-2"])
+    assert result.metadata["sent_message_ids"] == expected_ids
     assert result.metadata["send_results"][0]["success"]
+    delivered.assert_awaited_once()
+    receipt = delivered.await_args.kwargs
+    assert receipt["session_id"] == "chat" and receipt["reply_id"] == "reply-id" and receipt["call_id"] == "execution"
+    confirmed = [item for item in receipt["send_results"] if item["success"]]
+    assert [item["message_id"] for item in confirmed] == expected_ids
+    assert [item["text"] for item in confirmed] == expected_ids
     if failure:
         engine._runtime.record_planner_reply.assert_not_called()
     else:
