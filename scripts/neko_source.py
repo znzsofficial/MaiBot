@@ -71,6 +71,11 @@ def main():
             "import src.maisaka.context.compaction as compaction;"
             "import src.chat.replyer.maisaka_generator_base as generator;"
             "import src.plugin_runtime.component_query as query;"
+            "from src.common.prompt_i18n import load_prompt_template;"
+            "templates=('agent_acp','agent_acp_computer','agent_acp_environment','agent_acp_failure',"
+            "'agent_planner','agent_planner_continue','agent_planner_resume','a_memorix_fact_deduplication');"
+            "assert all(load_prompt_template(name,locale=locale).template "
+            "for name in templates for locale in ('zh-CN','en-US','ja-JP'));"
             "assert all(Path(m.__file__).resolve().is_relative_to(root) for m in [reply,compaction,generator,query]);"
             "assert callable(reply._notify_reply_delivery);assert callable(compaction._neko_compaction_items);"
             "assert callable(query.ComponentQueryService._build_trusted_tool_context);"
@@ -87,6 +92,7 @@ def main():
         "artifact": output.name,
         "source_hashes_verified": True,
         "isolated_import": True,
+        "relocated_templates_verified": True,
     }
     output.with_suffix(".json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(record))

@@ -16,11 +16,15 @@ REQUIRED = {
     "pytests/neko/test_source_policy.py",
     "pytests/neko/test_plugin_bridge.py",
     "pytests/neko/test_tool_context.py",
+    "pytests/neko/test_runtime_preparation.py",
     "pytests/maisaka/test_context_compaction.py",
     "pytests/maisaka/test_focus_group_runtime.py",
     "pytests/maisaka/test_replyer_expression_selection.py",
     "pytests/maisaka/test_planner_text_reply.py",
     "pytests/plugin_runtime/test_reply_extension_platform_scope.py",
+    "pytests/plugin_runtime/test_config_widgets.py",
+    "pytests/plugin_runtime/test_internal_chat_capability.py",
+    "pytests/prompt_test/test_prompt_i18n.py",
 }
 if os.environ.get("NEKO_RETIRED_LIFE_TESTS") == "1":
     REQUIRED.add("pytests/neko_retired/test_life_bridge.py")

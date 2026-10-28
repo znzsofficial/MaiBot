@@ -19,6 +19,11 @@ TESTS = (
     "pytests/maisaka/test_replyer_expression_selection.py",
     "pytests/maisaka/test_planner_text_reply.py",
     "pytests/plugin_runtime/test_reply_extension_platform_scope.py",
+    "pytests/plugin_runtime/test_config_widgets.py",
+    "pytests/plugin_runtime/test_internal_chat_capability.py",
+    # v1.3.17-added behavior, not the unrelated historical locale/metadata suite.
+    "pytests/prompt_test/test_prompt_i18n.py::test_outdated_custom_prompt_uses_builtin_template",
+    "pytests/prompt_test/test_prompt_i18n.py::test_missing_prompt_message_includes_name_and_locale",
 )
 
 

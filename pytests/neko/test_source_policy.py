@@ -21,22 +21,35 @@ def test_all_registered_source_bytes_match():
         assert hashlib.sha256((ROOT / name).read_bytes()).hexdigest() == digest, name
 
 
-def test_sdk_upgrade_keeps_other_official_locked_versions():
+def test_targeted_runtime_upgrade_keeps_reviewed_locked_versions():
     manifest = json.loads((ROOT / "neko-patches.json").read_text(encoding="utf-8"))
+    # v1.3.17 stopped publishing a lock; keep the last official stable lock as
+    # the independently reviewable baseline, not a fresh unconstrained resolve.
+    baseline = manifest["lock_baseline_commit"]
+    assert baseline == "fe88ec6b6053e40eaf430cb5ba7ed7e805add2cb"
+    subprocess.run(["git", "merge-base", "--is-ancestor", baseline, manifest["upstream_commit"]], cwd=ROOT, check=True)
+    assert not subprocess.check_output(["git", "ls-tree", manifest["upstream_commit"], "uv.lock"], cwd=ROOT).strip()
     official = tomllib.loads(
         subprocess.check_output(
-            ["git", "show", manifest["upstream_commit"] + ":uv.lock"],
+            ["git", "show", baseline + ":uv.lock"],
             cwd=ROOT,
         ).decode("utf-8")
     )
     current = tomllib.loads((ROOT / "uv.lock").read_text(encoding="utf-8"))
     before = {package["name"]: package["version"] for package in official["package"]}
     after = {package["name"]: package["version"] for package in current["package"]}
-    assert after == {**before, "maibot-plugin-sdk": "2.17.0"}
-    assert manifest["runtime_packages"]["maibot-plugin-sdk"] == "2.17.0"
+    reviewed = {"maibot": "1.3.17", "maibot-dashboard": "1.9.11", "maibot-plugin-sdk": "2.19.0"}
+    assert after == {**before, **reviewed}
+    assert manifest["runtime_packages"] == reviewed
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    assert "maibot-plugin-sdk>=2.17.0" in project["project"]["dependencies"]
-    assert "maibot-plugin-sdk>=2.17.0" in (ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()
+    upstream_project = tomllib.loads(
+        subprocess.check_output(["git", "show", manifest["upstream_commit"] + ":pyproject.toml"], cwd=ROOT).decode(
+            "utf-8"
+        )
+    )
+    assert project["project"]["dependencies"] == upstream_project["project"]["dependencies"]
+    assert "maibot-plugin-sdk>=2.19.0" in project["project"]["dependencies"]
+    assert "maibot-plugin-sdk>=2.19.0" in (ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()
 
 
 def test_only_the_readonly_fork_workflow_is_active():
