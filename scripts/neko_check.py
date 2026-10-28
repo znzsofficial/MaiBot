@@ -5,6 +5,7 @@ from tempfile import TemporaryDirectory
 from importlib.metadata import version
 
 import os
+import argparse
 import json
 import subprocess
 import sys
@@ -22,6 +23,13 @@ TESTS = (
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--include-retired-life",
+        action="store_true",
+        help="Also require the private pinned Life integration locally; never used by public CI",
+    )
+    args = parser.parse_args()
     manifest = json.loads((ROOT / "neko-patches.json").read_text(encoding="utf-8"))
     for package, expected in manifest["runtime_packages"].items():
         if version(package) != expected:
@@ -34,6 +42,7 @@ def main():
             PYTHONPATH=str(ROOT / "scripts") + os.pathsep + str(ROOT),
             PYTEST_DISABLE_PLUGIN_AUTOLOAD="1",
             PYTHONIOENCODING="utf-8",
+            NEKO_RETIRED_LIFE_TESTS="1" if args.include_retired_life else "0",
         )
         result = subprocess.run(
             [
@@ -47,6 +56,7 @@ def main():
                 "-o",
                 "asyncio_mode=auto",
                 *TESTS,
+                *(["pytests/neko_retired/test_life_bridge.py"] if args.include_retired_life else []),
                 "-q",
             ],
             cwd=ROOT,

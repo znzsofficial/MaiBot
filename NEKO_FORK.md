@@ -48,11 +48,15 @@ uv run --no-sync python scripts/neko_check.py
 uv run --no-sync python scripts/neko_source.py --output <checkout之外的新路径>/maibot-neko-source.zip
 ```
 
-运行契约前须在仓库外准备 `neko-life`、`neko-tts` 的源码克隆，将环境变量
-`NEKO_PLUGIN_FIXTURES` 指向两目录的父目录。固定Life提交 `f6116cfc76943c9bd6b78b47d309478645908a75`、
-TTS提交 `7be09dec956fbae6a8600eef5df14cf116e18d57`；测试逐个核对实际消费文件与固定提交字节，
-缺失或变化直接失败，不静默skip。CI在兄弟目录checkout它们，不把插件代码打入宿主源码包。
-只验证宿主Focus快照与插件消费者、精确回执到Life结算/TTS一次认领，不重跑邻居全库。
+运行公共契约前须在仓库外准备 `neko-tts` 源码克隆，将环境变量`NEKO_PLUGIN_FIXTURES`
+指向其父目录。固定TTS提交 `7be09dec956fbae6a8600eef5df14cf116e18d57`；逐个核对消费文件与
+固定提交字节，缺失或变化直接失败、不静默skip。CI只checkout公共TTS，不把插件源码打入宿主包。
+
+Life已退役且仓库改为私有，2026-10-28用户批准解除公共CI的私仓依赖；不增加跨仓secret、不公开源码。
+原Life真实集成测试完整保留在`pytests/neko_retired/test_life_bridge.py`；本地显式运行
+`uv run --no-sync python scripts/neko_check.py --include-retired-life`时额外要求Life固定提交
+`f6116cfc76943c9bd6b78b47d309478645908a75`，缺少源码仍失败，不自动skip。
+公共CI不冒称执行私有Life消费者验证；宿主摘要隔离/精确回执/共享Focus保护与实际TTS消费者仍为必跑项。
 
 - Linux 生产锚点 Python **3.14.4**，Windows 最低 Python **3.12**；SDK **2.16.0**、
   Dashboard **1.9.10** 从同一校验锁安装，不把 latest 当生产环境。

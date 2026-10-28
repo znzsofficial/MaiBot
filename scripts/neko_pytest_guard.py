@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import ipaddress
+import os
 import sys
 
 
@@ -21,6 +22,8 @@ REQUIRED = {
     "pytests/maisaka/test_planner_text_reply.py",
     "pytests/plugin_runtime/test_reply_extension_platform_scope.py",
 }
+if os.environ.get("NEKO_RETIRED_LIFE_TESTS") == "1":
+    REQUIRED.add("pytests/neko_retired/test_life_bridge.py")
 
 
 def _network_guard(event, args):
