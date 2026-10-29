@@ -21,6 +21,11 @@ TESTS = (
     "pytests/plugin_runtime/test_reply_extension_platform_scope.py",
     "pytests/plugin_runtime/test_config_widgets.py",
     "pytests/plugin_runtime/test_internal_chat_capability.py",
+    "pytests/plugin_runtime/test_message_route_identity.py::test_formal_identity_roundtrip_and_old_fields_cannot_override",
+    "pytests/plugin_runtime/test_message_route_identity.py::test_inbound_rejects_undeclared_identity",
+    "pytests/plugin_runtime/test_message_route_identity.py::test_route_rpc_does_not_discover_accounts",
+    "pytests/config_test/test_startup_bindings.py",
+    "pytests/maisaka/test_behavior_style_prompt.py",
     # v1.3.17-added behavior, not the unrelated historical locale/metadata suite.
     "pytests/prompt_test/test_prompt_i18n.py::test_outdated_custom_prompt_uses_builtin_template",
     "pytests/prompt_test/test_prompt_i18n.py::test_missing_prompt_message_includes_name_and_locale",

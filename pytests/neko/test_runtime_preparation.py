@@ -1,10 +1,11 @@
-"""Bounded v1.3.17 preparation; synthetic config only, never a live instance."""
+"""Bounded release preparation; synthetic config only, never a live instance."""
 
 from copy import deepcopy
 
 import pytest
 
 from src.config.config_upgrade_hooks import apply_config_upgrade_hooks
+from neko_prepare_1318 import split_attention_drift
 
 
 @pytest.mark.parametrize(
@@ -47,6 +48,54 @@ def test_new_version_does_not_enable_native_files_or_desktop_handoff():
     defaults = DesktopPetConfig()
     assert defaults.enabled is False
     assert defaults.chat_tools_enabled is False
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_1318_copy_migration_preserves_both_scopes_and_other_settings(enabled):
+    old = {
+        "experimental": {
+            "attention_drift": {"enabled": enabled, "level": "high", "anchor_policy": "strict"},
+            "focus_mode": True,
+            "focus_on_private": False,
+        },
+        "personality": {"personality": "synthetic unchanged persona"},
+        "http": {"port": 18234},
+        "capabilities": {"files": False},
+    }
+    original = deepcopy(old)
+    migrated = split_attention_drift(old)
+    expected = deepcopy(old)
+    legacy = expected["experimental"].pop("attention_drift")
+    expected["experimental"].update(group_attention_drift=legacy, private_attention_drift=legacy)
+    assert migrated == expected
+    assert old == original
+    assert split_attention_drift(migrated) == migrated
+    migrated["experimental"]["group_attention_drift"]["enabled"] = not enabled
+    assert migrated["experimental"]["private_attention_drift"]["enabled"] is enabled
+
+
+def test_1318_copy_migration_keeps_explicit_scope_values_and_fills_missing_fields():
+    old = {
+        "experimental": {
+            "attention_drift": {"enabled": True, "anchor_policy": "strict"},
+            "group_attention_drift": {"enabled": False},
+            "private_attention_drift": {"anchor_policy": "loose"},
+        }
+    }
+    result = split_attention_drift(old)["experimental"]
+    assert result == {
+        "group_attention_drift": {"enabled": False, "anchor_policy": "strict"},
+        "private_attention_drift": {"enabled": True, "anchor_policy": "loose"},
+    }
+    assert split_attention_drift({"experimental": {"focus_mode": True}}) == {"experimental": {"focus_mode": True}}
+
+
+@pytest.mark.parametrize(
+    "experimental", [{"attention_drift": False}, {"attention_drift": {}, "group_attention_drift": 1}]
+)
+def test_1318_copy_migration_rejects_invalid_tables(experimental):
+    with pytest.raises(ValueError, match="must be a table"):
+        split_attention_drift({"experimental": experimental})
 
 
 @pytest.mark.parametrize("locale", ["zh-CN", "en-US", "ja-JP"])

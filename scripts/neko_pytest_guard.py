@@ -17,6 +17,7 @@ REQUIRED = {
     "pytests/neko/test_plugin_bridge.py",
     "pytests/neko/test_tool_context.py",
     "pytests/neko/test_runtime_preparation.py",
+    "pytests/neko/test_release_1318.py",
     "pytests/maisaka/test_context_compaction.py",
     "pytests/maisaka/test_focus_group_runtime.py",
     "pytests/maisaka/test_replyer_expression_selection.py",
@@ -24,6 +25,9 @@ REQUIRED = {
     "pytests/plugin_runtime/test_reply_extension_platform_scope.py",
     "pytests/plugin_runtime/test_config_widgets.py",
     "pytests/plugin_runtime/test_internal_chat_capability.py",
+    "pytests/plugin_runtime/test_message_route_identity.py",
+    "pytests/config_test/test_startup_bindings.py",
+    "pytests/maisaka/test_behavior_style_prompt.py",
     "pytests/prompt_test/test_prompt_i18n.py",
 }
 if os.environ.get("NEKO_RETIRED_LIFE_TESTS") == "1":

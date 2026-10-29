@@ -38,7 +38,7 @@ def test_targeted_runtime_upgrade_keeps_reviewed_locked_versions():
     current = tomllib.loads((ROOT / "uv.lock").read_text(encoding="utf-8"))
     before = {package["name"]: package["version"] for package in official["package"]}
     after = {package["name"]: package["version"] for package in current["package"]}
-    reviewed = {"maibot": "1.3.17", "maibot-dashboard": "1.9.11", "maibot-plugin-sdk": "2.19.0"}
+    reviewed = {"maibot": "1.3.18", "maibot-dashboard": "1.9.12", "maibot-plugin-sdk": "2.19.0"}
     assert after == {**before, **reviewed}
     assert manifest["runtime_packages"] == reviewed
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
