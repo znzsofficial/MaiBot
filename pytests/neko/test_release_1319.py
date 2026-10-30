@@ -3,6 +3,7 @@
 from copy import deepcopy
 
 import tomlkit
+import pytest
 
 from src.config.config import CONFIG_VERSION, Config, load_config_from_file, write_config_to_file
 
@@ -42,3 +43,19 @@ def test_1319_config_copy_keeps_existing_values_and_only_adds_empty_profiles(tmp
     _, again_updated = load_config_from_file(Config, path, CONFIG_VERSION)
     assert not again_updated
     assert tomlkit.parse(path.read_text(encoding="utf-8")).unwrap() == expected
+
+
+@pytest.mark.parametrize("quote", ["", "`"])
+def test_update_index_attribution_accepts_reviewed_uv_error_formats(tmp_path, quote):
+    from src.common.self_update import _failed_dependency_index
+
+    (tmp_path / "pyproject.toml").write_text(
+        '[[tool.uv.index]]\nname="pypi"\nurl="https://pypi.org/simple"\ndefault=true\n', encoding="utf-8"
+    )
+    output = f"Failed to fetch: {quote}https://pypi.org/simple/probe/{quote}\n cause: operation timed out"
+    assert _failed_dependency_index(tmp_path, output) == {
+        "name": "pypi",
+        "url": "https://pypi.org/simple",
+        "default": True,
+    }
+    assert _failed_dependency_index(tmp_path, output.replace("pypi.org/", "pypi.org.evil/")) is None

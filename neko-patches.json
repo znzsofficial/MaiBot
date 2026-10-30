@@ -10,6 +10,7 @@
     "src/chat/replyer/maisaka_generator_base.py": "88aebb865253093fefc32c3887d16701e9bbeb5241b1b9ad6112e49f86431f78",
     "src/maisaka/context/compaction.py": "05035009d2a669da7fc0bfcf5b95b400991b6cbb038ae6b9c6bf6e2ea56614f2",
     "src/plugin_runtime/component_query.py": "e66ea8974146cde45295b21ea9e4523e6461dfd63fc3c0b5bfce03c6706dcbaa",
+    "src/common/self_update.py": "ec0bf3fc8e37588ff2db8da27c196344b55e008a6b1314f92e232b156d65fb9d",
     "uv.lock": "d70b9e0065439b94587a812077b9efc4e1685f32fc594c1f48f7dc284b61128a"
   }
 }

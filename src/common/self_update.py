@@ -297,7 +297,8 @@ def _failed_dependency_index(root: Path, output: str) -> Optional[Dict[str, Any]
         output, re.IGNORECASE,
     ):
         return None
-    failed = re.search(r"Failed to fetch:\s*`(https?://[^`]+)`", output)
+    # uv 0.13 emits plain URLs; older releases wrapped the same URL in backticks.
+    failed = re.search(r"Failed to fetch:\s*`?(https?://[^`\s]+)`?", output)
     if failed is None:
         return None
     config_path = root / "uv.toml"
