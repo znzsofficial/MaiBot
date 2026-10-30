@@ -26,6 +26,17 @@ TESTS = (
     "pytests/plugin_runtime/test_message_route_identity.py::test_route_rpc_does_not_discover_accounts",
     "pytests/config_test/test_startup_bindings.py",
     "pytests/maisaka/test_behavior_style_prompt.py",
+    # v1.3.19: new permissioned APIs, context preparation/trim and update-source fixes.
+    "tests/test_personality_service.py",
+    "pytests/maisaka/test_context_preparation_status.py",
+    "pytests/maisaka/test_tool_monitor_condensed_result.py",
+    "pytests/plugin_runtime/test_desktop_pet_buttons.py",
+    "pytests/plugin_runtime/test_desktop_pet_capability.py",
+    "pytests/plugin_runtime/test_desktop_pet_drag.py",
+    "pytests/plugin_runtime/test_desktop_pet_hooks.py",
+    "pytests/plugin_runtime/test_market_capabilities.py",
+    "pytests/startup_test/test_self_update_dependency_sources.py",
+    "pytests/webui/test_plugin_sources.py",
     # v1.3.17-added behavior, not the unrelated historical locale/metadata suite.
     "pytests/prompt_test/test_prompt_i18n.py::test_outdated_custom_prompt_uses_builtin_template",
     "pytests/prompt_test/test_prompt_i18n.py::test_missing_prompt_message_includes_name_and_locale",

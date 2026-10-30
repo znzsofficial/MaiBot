@@ -128,9 +128,11 @@ def test_trim_retains_twenty_percent_of_configured_context_with_five_chat_messag
     assert result.removed_messages == history[:-expected_count]
 
 
-@pytest.mark.parametrize("context_size, threshold", [(40, 48), (60, 72), (7, 9)])
-def test_trim_triggers_exactly_at_one_hundred_twenty_percent(context_size, threshold):
-    history = [chat_message(index) for index in range(threshold)]
+@pytest.mark.parametrize("context_size", [40, 60, 7])
+def test_trim_triggers_exactly_at_configured_message_count(context_size):
+    # v1.3.19 intentionally moved the trigger from 120% to 100%; retain the
+    # boundary, 20% target and internal/tool-message protections, not the old ratio.
+    history = [chat_message(index) for index in range(context_size)]
     before = process_chat_history_after_cycle(history[:-1], max_context_size=context_size)
     assert before.history == history[:-1]
     assert before.removed_messages == []
@@ -141,7 +143,7 @@ def test_trim_triggers_exactly_at_one_hundred_twenty_percent(context_size, thres
 
 
 def test_internal_items_do_not_count_toward_trigger_or_retention_target():
-    chats = [chat_message(index) for index in range(48)]
+    chats = [chat_message(index) for index in range(40)]
     history = list(chats[:-1])
     for index in range(60):
         call, output = tool_turn(f"turn-{index}", f"call-{index}")
@@ -159,7 +161,7 @@ def test_internal_items_do_not_count_toward_trigger_or_retention_target():
     assert all(not item.count_in_context for item in history[len(chats) - 1:])
     before = process_chat_history_after_cycle(history, max_context_size=40)
     assert before.history == history
-    assert before.remaining_context_count == 47
+    assert before.remaining_context_count == 39
     reached = process_chat_history_after_cycle([*history, chats[-1]], max_context_size=40)
     assert [item for item in reached.history if item.count_in_context] == chats[-8:]
     assert reached.remaining_context_count == 8
